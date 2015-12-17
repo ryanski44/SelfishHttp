@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using NUnit.Framework;
+using System.Text.RegularExpressions;
 
 namespace SelfishHttp.Test
 {
@@ -23,8 +24,8 @@ namespace SelfishHttp.Test
         [Test]
         public void ShouldHonourIgnorePathCaseAndReturnCorrectResource()
         {
-            _server.OnGet("/Stuff").IgnorePathCase().RespondWith("yes, this is stuff");
-
+            _server.OnGet("/Stuff", true).RespondWith("yes, this is stuff");
+            
             var client = new HttpClient();
             var response = client.GetAsync(Url("/stuff")).Result.Content.ReadAsStringAsync().Result;
             Assert.That(response, Is.EqualTo("yes, this is stuff"));
@@ -284,6 +285,27 @@ namespace SelfishHttp.Test
 
             var response = client.GetAsync(Url("/get")).Result;
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(response.Headers.GetValues("x-custom").Single(), Is.EqualTo("thingo"));
+            Assert.That(response.Content.ReadAsStringAsync().Result, Is.EqualTo("response"));
+        }
+
+        [Test]
+        public void ResponsesCanBeDecoratedRegex()
+        {
+            _server.OnGet(new Regex(@"^/get/(\d+)", RegexOptions.IgnoreCase)).Respond((match, req, res, next) =>
+            {
+                res.Headers["x-custom"] = "thingo";
+                res.StatusCode = Int32.Parse(match.Groups[1].Value);
+                next();
+            }).Respond((req, res) =>
+            {
+                res.Body = "response";
+            });
+
+            var client = new HttpClient();
+
+            var response = client.GetAsync(Url("/get/404")).Result;
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
             Assert.That(response.Headers.GetValues("x-custom").Single(), Is.EqualTo("thingo"));
             Assert.That(response.Content.ReadAsStringAsync().Result, Is.EqualTo("response"));
         }

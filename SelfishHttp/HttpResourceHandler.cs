@@ -1,26 +1,30 @@
 using System;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace SelfishHttp
 {
     public class HttpResourceHandler : IHttpResourceHandler
     {
         private string _method;
-        private string _path;
+        private Regex _pathRegex;
         private HttpHandler _pipeline;
-        private StringComparison _comparison;
 
         public IServerConfiguration ServerConfiguration { get; private set; }
         public AuthenticationSchemes? AuthenticationScheme { get; set; }
  
-        public HttpResourceHandler(string method, string path, IServerConfiguration serverConfiguration)
+        public HttpResourceHandler(string method, Regex pathRegex, IServerConfiguration serverConfiguration)
         {
             _method = method;
-            _path = path;
+            _pathRegex = pathRegex;
             _pipeline = new HttpHandler(serverConfiguration);
-            _comparison = StringComparison.CurrentCulture;
             ServerConfiguration = serverConfiguration;
             AuthenticationScheme = AuthenticationSchemes.Anonymous;
+        }
+
+        public void AddHandler(Action<Match, HttpListenerContext, Action> handler)
+        {
+            _pipeline.AddHandler(handler);
         }
 
         public void AddHandler(Action<HttpListenerContext, Action> handler)
@@ -28,20 +32,18 @@ namespace SelfishHttp
             _pipeline.AddHandler(handler);
         }
 
-        public void Handle(HttpListenerContext context, Action next)
+        public void Handle(Match match, HttpListenerContext context, Action next)
         {
-            _pipeline.Handle(context, next);
+            _pipeline.Handle(match, context, next);
         }
 
-        public bool Matches(HttpListenerRequest request)
+        public Match Match(HttpListenerRequest request)
         {
-            return request.HttpMethod == _method && string.Equals(request.Url.AbsolutePath, _path, _comparison);
-        }
-
-        public IHttpResourceHandler IgnorePathCase()
-        {
-            _comparison = StringComparison.CurrentCultureIgnoreCase;
-            return this;
+            if(request.HttpMethod == _method)
+            {
+                return _pathRegex.Match(request.Url.AbsolutePath);
+            }
+            return System.Text.RegularExpressions.Match.Empty;
         }
     }
 }

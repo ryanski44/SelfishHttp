@@ -1,19 +1,20 @@
 using System;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace SelfishHttp
 {
     public interface IHttpHandler
     {
+        void AddHandler(Action<Match, HttpListenerContext, Action> handler);
         void AddHandler(Action<HttpListenerContext, Action> handler);
-        void Handle(HttpListenerContext context, Action next);
+        void Handle(Match pathMatch, HttpListenerContext context, Action next);
         AuthenticationSchemes? AuthenticationScheme { get; set; }
         IServerConfiguration ServerConfiguration { get; }
     }
 
     public interface IHttpResourceHandler : IHttpHandler
     {
-        bool Matches(HttpListenerRequest request);
-        IHttpResourceHandler IgnorePathCase();
+        Match Match(HttpListenerRequest request);
     }
 }

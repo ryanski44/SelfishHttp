@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.RegularExpressions;
 
 namespace SelfishHttp
 {
@@ -40,39 +41,68 @@ namespace SelfishHttp
             get { return _baseUri; }
         }
 
-        public IHttpResourceHandler OnGet(string path)
+        public IHttpResourceHandler OnGet(string path, bool ignoreCase = false)
         {
-            return AddHttpHandler("GET", path);
+            return AddHttpHandler("GET", path, ignoreCase);
         }
 
-        public IHttpResourceHandler OnHead(string path)
+        public IHttpResourceHandler OnGet(Regex pathRegex)
         {
-            return AddHttpHandler("HEAD", path);
+            return AddHttpHandler("GET", pathRegex);
         }
 
-        public IHttpResourceHandler OnPut(string path)
+        public IHttpResourceHandler OnHead(string path, bool ignoreCase = false)
         {
-            return AddHttpHandler("PUT", path);
+            return AddHttpHandler("HEAD", path, ignoreCase);
+        }
+        public IHttpResourceHandler OnHead(Regex pathRegex)
+        {
+            return AddHttpHandler("HEAD", pathRegex);
         }
 
-        public IHttpResourceHandler OnPatch(string path)
+        public IHttpResourceHandler OnPut(string path, bool ignoreCase = false)
         {
-            return AddHttpHandler("PATCH", path);
+            return AddHttpHandler("PUT", path, ignoreCase);
+        }
+        public IHttpResourceHandler OnPut(Regex pathRegex)
+        {
+            return AddHttpHandler("PUT", pathRegex);
         }
 
-        public IHttpResourceHandler OnPost(string path)
+        public IHttpResourceHandler OnPatch(string path, bool ignoreCase = false)
         {
-            return AddHttpHandler("POST", path);
+            return AddHttpHandler("PATCH", path, ignoreCase);
+        }
+        public IHttpResourceHandler OnPatch(Regex pathRegex)
+        {
+            return AddHttpHandler("PATCH", pathRegex);
         }
 
-        public IHttpResourceHandler OnDelete(string path)
+        public IHttpResourceHandler OnPost(string path, bool ignoreCase = false)
         {
-            return AddHttpHandler("DELETE", path);
+            return AddHttpHandler("POST", path, ignoreCase);
+        }
+        public IHttpResourceHandler OnPost(Regex pathRegex)
+        {
+            return AddHttpHandler("POST", pathRegex);
         }
 
-        public IHttpResourceHandler OnOptions(string path)
+        public IHttpResourceHandler OnDelete(string path, bool ignoreCase = false)
         {
-            return AddHttpHandler("OPTIONS", path);
+            return AddHttpHandler("DELETE", path, ignoreCase);
+        }
+        public IHttpResourceHandler OnDelete(Regex pathRegex)
+        {
+            return AddHttpHandler("DELETE", pathRegex);
+        }
+
+        public IHttpResourceHandler OnOptions(string path, bool ignoreCase = false)
+        {
+            return AddHttpHandler("OPTIONS", path, ignoreCase);
+        }
+        public IHttpResourceHandler OnOptions(Regex pathRegex)
+        {
+            return AddHttpHandler("OPTIONS", pathRegex);
         }
 
         public IHttpHandler OnRequest()
@@ -80,9 +110,14 @@ namespace SelfishHttp
             return _anyRequestHandler;
         }
 
-        private IHttpResourceHandler AddHttpHandler(string method, string path)
+        private IHttpResourceHandler AddHttpHandler(string method, string path, bool ignoreCase = false)
         {
-            var httpHandler = new HttpResourceHandler(method, path, this);
+            return AddHttpHandler(method, new Regex(String.Format("^{0}$", Regex.Escape(path)), ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None));
+        }
+
+        private IHttpResourceHandler AddHttpHandler(string method, Regex pathRegex)
+        {
+            var httpHandler = new HttpResourceHandler(method, pathRegex, this);
             _resourceHandlers.Add(httpHandler);
             return httpHandler;
         }
@@ -103,7 +138,7 @@ namespace SelfishHttp
                 return _anyRequestHandler.AuthenticationScheme.Value;
             }
 
-            var handler = _resourceHandlers.FirstOrDefault(h => h.Matches(httpRequest));
+            var handler = _resourceHandlers.FirstOrDefault(h => h.Match(httpRequest).Success);
             if (handler != null && handler.AuthenticationScheme.HasValue)
             {
                 return handler.AuthenticationScheme.Value;
@@ -134,15 +169,20 @@ namespace SelfishHttp
 
                     try
                     {
-                        _anyRequestHandler.Handle(context, () =>
+                        _anyRequestHandler.Handle(null, context, () =>
                         {
-                            var handler = _resourceHandlers.FirstOrDefault(h => h.Matches(req));
-
-                            if (handler != null)
+                            bool found = false;
+                            foreach(var handler in _resourceHandlers)
                             {
-                                handler.Handle(context, () => { });
+                                Match m = handler.Match(req);
+                                if(m.Success)
+                                {
+                                    handler.Handle(m, context, () => { });
+                                    found = true;
+                                    break;
+                                }
                             }
-                            else
+                            if (!found)
                             {
                                 res.StatusCode = 404;
                             }

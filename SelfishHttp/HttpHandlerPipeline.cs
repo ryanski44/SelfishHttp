@@ -1,20 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace SelfishHttp
 {
     public class HttpHandler : IHttpHandler
     {
-        private IList<Action<HttpListenerContext, Action>> _handlers;
+        private IList<Action<Match, HttpListenerContext, Action>> _handlers;
 
         public HttpHandler(IServerConfiguration serverConfig)
         {
-            _handlers = new List<Action<HttpListenerContext, Action>>();
+            _handlers = new List<Action<Match, HttpListenerContext, Action>>();
             ServerConfiguration = serverConfig;
         }
 
-        public void Handle(HttpListenerContext context, Action next)
+        public void Handle(Match pathMatch, HttpListenerContext context, Action next)
         {
             var handlerEnumerator = _handlers.GetEnumerator();
             Action handle = null;
@@ -22,7 +23,7 @@ namespace SelfishHttp
                          {
                              if (handlerEnumerator.MoveNext())
                              {
-                                 handlerEnumerator.Current(context, () => handle());
+                                 handlerEnumerator.Current(pathMatch, context, () => handle());
                              } else
                              {
                                  next();
@@ -35,9 +36,14 @@ namespace SelfishHttp
         public AuthenticationSchemes? AuthenticationScheme { get; set; }
         public IServerConfiguration ServerConfiguration { get; private set; }
 
-        public void AddHandler(Action<HttpListenerContext, Action> handler)
+        public void AddHandler(Action<Match, HttpListenerContext, Action> handler)
         {
             _handlers.Add(handler);
+        }
+
+        public void AddHandler(Action<HttpListenerContext, Action> handler)
+        {
+            _handlers.Add(new Action<Match, HttpListenerContext, Action>((match, context, next) => handler.Invoke(context, next)));
         }
     }
 }
