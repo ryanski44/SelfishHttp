@@ -12,7 +12,7 @@ namespace SelfishHttp
 
         public IServerConfiguration ServerConfiguration { get; private set; }
         public AuthenticationSchemes? AuthenticationScheme { get; set; }
- 
+
         public HttpResourceHandler(string method, Regex pathRegex, IServerConfiguration serverConfiguration)
         {
             _method = method;
@@ -39,11 +39,17 @@ namespace SelfishHttp
 
         public Match Match(HttpListenerRequest request)
         {
-            if(request.HttpMethod == _method)
+            if (request.HttpMethod == _method)
             {
                 return _pathRegex.Match(request.Url.AbsolutePath);
             }
             return System.Text.RegularExpressions.Match.Empty;
+        }
+
+        public IHttpResourceHandler IgnorePathCase()
+        {
+            _pathRegex = new Regex(_pathRegex.ToString(), _pathRegex.Options | RegexOptions.IgnoreCase);
+            return this;
         }
     }
 }

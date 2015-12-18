@@ -24,7 +24,7 @@ namespace SelfishHttp.Test
         [Test]
         public void ShouldHonourIgnorePathCaseAndReturnCorrectResource()
         {
-            _server.OnGet("/Stuff", true).RespondWith("yes, this is stuff");
+            _server.OnGet("/Stuff").IgnorePathCase().RespondWith("yes, this is stuff");
             
             var client = new HttpClient();
             var response = client.GetAsync(Url("/stuff")).Result.Content.ReadAsStringAsync().Result;
