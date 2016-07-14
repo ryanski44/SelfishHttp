@@ -7,5 +7,7 @@ namespace SelfishHttp
         int StatusCode { get; set; }
         WebHeaderCollection Headers { get; }
         object Body { set; }
+
+        void Abort();
     }
 }

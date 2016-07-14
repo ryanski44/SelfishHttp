@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
@@ -30,6 +31,11 @@ namespace SelfishHttp
         public object Body
         {
             set { _bodyWriter.WriteBody(value ?? "", _response.OutputStream); }
+        }
+
+        public void Abort()
+        {
+            _response.Abort();
         }
     }
 }
